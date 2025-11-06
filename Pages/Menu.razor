@@ -1,0 +1,57 @@
+﻿@page "/select-class"
+
+<PageTitle>Select a Class - Study Buddy</PageTitle>
+
+<div class="class-selection-container">
+    <div class="class-selection-card">
+        <h1 class="page-title">Choose Your Study Topic</h1>
+        <p class="subtitle">Select a class to begin your study session</p>
+
+        <div class="class-grid">
+            <!-- Active Class -->
+            <button class="class-button active" @onclick="StartChemistry">
+                <div class="class-icon">🧪</div>
+                <div class="class-name">Chemistry for Biology</div>
+                <div class="class-status ready">Ready to study</div>
+            </button>
+
+            <!-- WIP Classes -->
+            <button class="class-button wip" disabled>
+                <div class="class-icon">🧬</div>
+                <div class="class-name">Principles of Cell and Mol Biology</div>
+                <div class="class-status">WIP</div>
+            </button>
+
+            <button class="class-button wip" disabled>
+                <div class="class-icon">⚗️</div>
+                <div class="class-name">Biomolecular Sciences</div>
+                <div class="class-status">WIP</div>
+            </button>
+
+            <button class="class-button wip" disabled>
+                <div class="class-icon">🔬</div>
+                <div class="class-name">Molecular Genetics and Biotech</div>
+                <div class="class-status">WIP</div>
+            </button>
+        </div>
+
+        <button class="back-button" @onclick="GoBack">
+            ← Back to Menu
+        </button>
+    </div>
+</div>
+
+@code {
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+
+    private void StartChemistry()
+    {
+        Navigation.NavigateTo("/preliminary-intro");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

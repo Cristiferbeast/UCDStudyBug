@@ -1,0 +1,35 @@
+﻿@page "/"
+@inject NavigationManager Navigation
+
+<PageTitle>Study Buddy</PageTitle>
+
+<div class="home-container">
+    <div class="menu-card">
+        <h1 class="title">Study Buddy Thing I Built at 1AM</h1>
+
+        <div class="button-group">
+            <button class="btn-start" @onclick="HandleStart">
+                <span class="button-icon">🚀</span>
+                Start
+            </button>
+
+            <button class="btn-load" @onclick="HandleLoad">
+                <span class="button-icon">📂</span>
+                Load
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private void HandleStart()
+    {
+        Navigation.NavigateTo("/select-class");
+    }
+
+    private void HandleLoad()
+    {
+        // TODO: Show load dialog
+        Console.WriteLine("Load clicked!");
+    }
+}

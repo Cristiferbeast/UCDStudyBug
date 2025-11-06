@@ -1,0 +1,99 @@
+﻿.intro-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+}
+
+.intro-card {
+    background: white;
+    border-radius: 24px;
+    padding: 50px;
+    max-width: 700px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.intro-icon {
+    font-size: 4rem;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.intro-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #2d3748;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.intro-content {
+    color: #4a5568;
+    line-height: 1.7;
+}
+
+.intro-text {
+    font-size: 1.15rem;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.info-box {
+    background: #f7fafc;
+    border-left: 4px solid #667eea;
+    border-radius: 8px;
+    padding: 20px 25px;
+    margin: 25px 0;
+}
+
+    .info-box.scoring {
+        border-left-color: #48bb78;
+    }
+
+    .info-box h3 {
+        color: #2d3748;
+        font-size: 1.2rem;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+
+    .info-box ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+
+    .info-box li {
+        margin: 8px 0;
+        font-size: 1rem;
+    }
+
+.encouragement {
+    background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: 500;
+    margin-top: 25px;
+    font-size: 1.05rem;
+}
+
+.button-container {
+    display: flex;
+    gap: 15px;
+    margin-top: 35px;
+    justify-content: space-between;
+}
+
+.btn-back, .btn-begin {
+    flex: 1;
+    padding: 16px 30px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition

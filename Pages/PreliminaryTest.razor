@@ -1,0 +1,203 @@
+﻿@page "/preliminary-test"
+@inject NavigationManager Navigation
+@inject PreliminaryTestService TestService
+@inject TestResultsService ResultsService
+@using StudyBuddy.Models
+@using StudyBuddy.Services
+@implements IDisposable
+
+<PageTitle>Preliminary Test - Study Buddy</PageTitle>
+
+<div class="test-container">
+    <div class="test-card">
+        <!-- Header with Progress -->
+        <div class="test-header">
+            <div class="progress-info">
+                <span class="question-counter">Question @(currentQuestionIndex + 1) of @totalQuestions</span>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: @(((currentQuestionIndex + 1) * 100.0 / totalQuestions))%"></div>
+                </div>
+            </div>
+            <div class="timer">
+                <span class="timer-icon">⏱️</span>
+                <span class="timer-text">@FormatTime(currentQuestionTime)</span>
+            </div>
+        </div>
+
+        @if (currentQuestion != null)
+        {
+            <!-- Category Badge -->
+            <div class="category-badge">
+                @currentQuestion.CategoryName
+            </div>
+
+            <!-- Question -->
+            <div class="question-section">
+                <h2 class="question-text">@currentQuestion.QuestionText</h2>
+            </div>
+
+            <!-- Answer Options -->
+            <div class="options-grid">
+                @for (int i = 0; i < currentQuestion.Options.Count; i++)
+                {
+                    var index = i; // Capture for lambda
+                    var isSelected = selectedAnswerIndex == index;
+                    var optionClass = isSelected ? "option-button selected" : "option-button";
+
+                    <button class="@optionClass" @onclick="() => SelectAnswer(index)">
+                        <span class="option-letter">@GetOptionLetter(index)</span>
+                        <span class="option-text">@currentQuestion.Options[index]</span>
+                        @if (isSelected)
+                        {
+                            <span class="checkmark">✓</span>
+                        }
+                    </button>
+                }
+            </div>
+
+            <!-- Submit Button -->
+            <div class="button-container">
+                <button class="btn-submit" @onclick="SubmitAnswer" disabled="@(selectedAnswerIndex == null)">
+                    @if (currentQuestionIndex < totalQuestions - 1)
+                    {
+                        <text>Next Question →</text>
+                    }
+                    else
+                    {
+                        <text>Finish Test ✓</text>
+                    }
+                </button>
+            </div>
+        }
+        else
+        {
+            <!-- Loading state -->
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p>Loading question...</p>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<StudyBuddy.Models.PreliminaryQuestion> allQuestions = new();
+    private StudyBuddy.Models.PreliminaryQuestion? currentQuestion;
+    private int currentQuestionIndex = 0;
+    private int totalQuestions = 0;
+    private int? selectedAnswerIndex = null;
+
+    private System.Timers.Timer? timer;
+    private TimeSpan currentQuestionTime = TimeSpan.Zero;
+    private DateTime questionStartTime;
+
+    private PreliminaryTestResult testResult = new();
+
+    protected override void OnInitialized()
+    {
+        // Get all questions
+        allQuestions = TestService.GetShuffledQuestions();
+        totalQuestions = allQuestions.Count;
+
+        // Load first question
+        LoadQuestion(0);
+
+        // Start timer
+        StartTimer();
+    }
+
+    private void LoadQuestion(int index)
+    {
+        if (index >= allQuestions.Count)
+        {
+            // Test complete
+            CompleteTest();
+            return;
+        }
+
+        currentQuestion = allQuestions[index];
+        currentQuestionIndex = index;
+        selectedAnswerIndex = null;
+        currentQuestionTime = TimeSpan.Zero;
+        questionStartTime = DateTime.Now;
+    }
+
+    private void StartTimer()
+    {
+        timer = new System.Timers.Timer(100); // Update every 100ms
+        timer.Elapsed += (sender, e) =>
+        {
+            currentQuestionTime = DateTime.Now - questionStartTime;
+            InvokeAsync(StateHasChanged);
+        };
+        timer.Start();
+    }
+
+    private void SelectAnswer(int index)
+    {
+        selectedAnswerIndex = index;
+    }
+
+    private void SubmitAnswer()
+    {
+        if (currentQuestion == null || selectedAnswerIndex == null) return;
+
+        // Stop the timer for this question
+        var timeTaken = DateTime.Now - questionStartTime;
+
+        // Determine if answer is correct or close
+        bool isCorrect = selectedAnswerIndex == currentQuestion.CorrectAnswerIndex;
+        bool isClose = currentQuestion.CloseAnswerIndexes.Contains(selectedAnswerIndex.Value);
+
+        // Calculate points
+        int points = TestService.CalculatePoints(timeTaken, isCorrect, isClose);
+        var result = TestService.DetermineAnswerResult(timeTaken, isCorrect, isClose);
+
+        // Store result
+        testResult.CategoryScores[currentQuestion.CategoryName] = new CategoryScore
+        {
+            CategoryName = currentQuestion.CategoryName,
+            Points = points,
+            TimeSpent = timeTaken,
+            Result = result
+        };
+
+        // Move to next question
+        LoadQuestion(currentQuestionIndex + 1);
+    }
+
+    private void CompleteTest()
+    {
+        timer?.Stop();
+        testResult.CompletedAt = DateTime.Now;
+
+        // Calculate total time
+        testResult.TotalTime = testResult.CategoryScores.Values
+            .Select(cs => cs.TimeSpent)
+            .Aggregate(TimeSpan.Zero, (sum, time) => sum + time);
+
+        // Navigate to results page (we'll build this next)
+        ResultsService.CurrentResult = testResult;
+        Navigation.NavigateTo("/test-results");
+    }
+
+    private string FormatTime(TimeSpan time)
+    {
+        if (time.TotalMinutes >= 1)
+        {
+            return $"{time.Minutes:D2}:{time.Seconds:D2}";
+        }
+        return $"{time.Seconds:D2}.{time.Milliseconds / 100}s";
+    }
+
+    private string GetOptionLetter(int index)
+    {
+        return ((char)('A' + index)).ToString();
+    }
+
+    public void Dispose()
+    {
+        timer?.Stop();
+        timer?.Dispose();
+    }
+}

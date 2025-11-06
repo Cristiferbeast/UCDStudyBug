@@ -1,0 +1,54 @@
+﻿@page "/preliminary-intro"
+@inject NavigationManager Navigation
+
+<PageTitle>Preliminary Test - Study Buddy</PageTitle>
+
+<div class="intro-container">
+    <div class="intro-card">
+        <div class="intro-icon">📋</div>
+        <h1 class="intro-title">Welcome to The Preliminary Test</h1>
+
+        <div class="intro-content">
+            <p class="intro-text">
+                This diagnostic test will help us understand your current knowledge across
+                <strong>10 different chemistry categories</strong>.
+            </p>
+
+            <div class="info-box">
+                <h3>📊 What to Expect:</h3>
+                <ul>
+                    <li>10 questions, one per category</li>
+                    <li>Each question is timed (we track how long you take)</li>
+                    <li>Answer as quickly and accurately as you can</li>
+                    <li>Your performance determines your personalized study plan</li>
+                </ul>
+            </div>
+
+            <p class="encouragement">
+                💪 Take your time, stay focused, and do your best! This isn't a pass/fail test—it's
+                designed to help you learn more effectively.
+            </p>
+        </div>
+
+        <div class="button-container">
+            <button class="btn-back" @onclick="GoBack">
+                ← Back
+            </button>
+            <button class="btn-begin" @onclick="BeginTest">
+                Begin Test 🚀
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/select-class");
+    }
+
+    private void BeginTest()
+    {
+        Navigation.NavigateTo("/preliminary-test");
+    }
+}
