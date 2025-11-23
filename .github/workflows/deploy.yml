@@ -1,0 +1,72 @@
+name: Deploy Blazor to GitHub Pages
+
+on:
+  push:
+    # Triggers the workflow on pushes to the main branch
+    branches: ["main"] 
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
+
+# Set permissions for the GITHUB_TOKEN to deploy the site
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# This tells GitHub to use a specific name for the Pages environment
+environment:
+  name: github-pages
+  url: ${{ steps.deployment.outputs.page_url }}
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    
+    # Define environment variables to simplify paths
+    env:
+      # Use your project's file path here
+      PROJECT_FILE: UCDStudyBug/UCDStudyBug.csproj 
+      PUBLISH_FOLDER: ${{ github.workspace }}/publish 
+      
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up .NET
+      # Ensure this version matches your Blazor project
+      uses: actions/setup-dotnet@v4 
+      with:
+        dotnet-version: '8.0.x' 
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.PROJECT_FILE }}
+
+    - name: Publish Blazor WebAssembly
+      run: dotnet publish ${{ env.PROJECT_FILE }} -c Release --output ${{ env.PUBLISH_FOLDER }}/wwwroot
+
+    # --- START of Essential GitHub Pages Fixes ---
+    - name: Apply GitHub Pages Fixes (Base Path, NoJekyll, 404.html)
+      # Get the repository name from the GitHub context (e.g., UCDStudyBug)
+      id: get_repo_name
+      run: echo "REPO_NAME=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
+      
+    - name: Fix Published Content
+      run: |
+        # 1. Update <base href> to match the repository path
+        # Note: We use ${{ env.REPO_NAME }} here dynamically
+        sed -i 's/<base href="\/" \/>/<base href="\/${{ env.REPO_NAME }}\/" \/>/g' ${{ env.PUBLISH_FOLDER }}/wwwroot/index.html
+        
+        # 2. Create the .nojekyll file to prevent Jekyll ignoring _framework
+        touch ${{ env.PUBLISH_FOLDER }}/wwwroot/.nojekyll
+        
+        # 3. Copy index.html to 404.html for client-side routing
+        cp ${{ env.PUBLISH_FOLDER }}/wwwroot/index.html ${{ env.PUBLISH_FOLDER }}/wwwroot/404.html
+    # --- END of GitHub Pages Fixes ---
+
+    - name: Upload Pages Artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        # Upload the final output folder
+        path: ${{ env.PUBLISH_FOLDER }}/wwwroot
+        
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
