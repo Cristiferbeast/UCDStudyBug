@@ -46,19 +46,19 @@ jobs:
         dotnet publish ${{ env.PROJECT_FILE }} -c Release --output ${{ env.PUBLISH_FOLDER }} /p:ServiceWorkerAssetsManifest=service-worker-assets.js
 
     # --- START of CRITICAL GitHub Pages Fixes ---
-    - name: Get Lowercase Repository Name
-      # CRITICAL FIX: Converts 'UCDStudyBug' to 'ucdstudybug' to match the case required by GitHub Pages URLs.
+    - name: Get Repository Name (Mixed Case)
+      # This captures the mixed-case name: UCDStudyBug
       id: get_repo_name
-      run: echo "REPO_NAME_LOWER=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-
+      run: echo "REPO_NAME_MIXED=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
+      
     - name: Fix Published Content
       run: |
         # Define the path to the deployed website root
         WEB_ROOT=${{ env.PUBLISH_FOLDER }}/wwwroot
 
-        # 1. Fix <base href>: Use the lowercase name and include the trailing slash (/)
-        # This is the final step that solves the base path problem.
-        sed -i 's/<base href="\/" \/>/<base href="\/${{ env.REPO_NAME_LOWER }}\/" \/>/g' $WEB_ROOT/index.html
+        # 1. Fix <base href>: Use the mixed-case name (UCDStudyBug) as requested.
+        # This results in: <base href="/UCDStudyBug/" />
+        sed -i 's|<base href="/" \/>|<base href="/${{ env.REPO_NAME_MIXED }}/" \/>|g' $WEB_ROOT/index.html
         
         # 2. Create the .nojekyll file to prevent Jekyll from ignoring Blazor's _framework folder
         touch $WEB_ROOT/.nojekyll
