@@ -40,33 +40,35 @@ jobs:
       run: dotnet restore ${{ env.PROJECT_FILE }}
 
     - name: Clean and Publish Blazor WebAssembly
-      # CRITICAL: Ensures a clean publish run and generates all necessary Blazor framework files.
+      # Ensures a clean publish run and generates all necessary Blazor framework files.
       run: |
         rm -rf ${{ env.PUBLISH_FOLDER }}
         dotnet publish ${{ env.PROJECT_FILE }} -c Release --output ${{ env.PUBLISH_FOLDER }} /p:ServiceWorkerAssetsManifest=service-worker-assets.js
 
     # --- START of CRITICAL GitHub Pages Fixes ---
     - name: Get Lowercase Repository Name
-      # CRITICAL FIX: Converts UCDStudyBug -> ucdstudybug. This is necessary because 
-      # GitHub Pages URLs are often case-insensitive when resolving resources.
+      # CRITICAL: Converts UCDStudyBug -> ucdstudybug for reliable pathing.
       id: get_repo_name
       run: echo "REPO_NAME_LOWER=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-    - name: Fix Published Content
+    - name: Inject Base Path Fix (JavaScript DOM Override)
       run: |
-        # Define the path to the deployed website root
         WEB_ROOT=${{ env.PUBLISH_FOLDER }}/wwwroot
-
-        # 1. Fix <base href>: Use the lowercase name and ensure the trailing slash (/).
-        # This results in: <base href="/ucdstudybug/" />
-        # The sed command uses | as the delimiter to handle the / in the path.
-        sed -i 's|<base href="/" \/>|<base href="/${{ env.REPO_NAME_LOWER }}/" \/>|g' $WEB_ROOT/index.html
+        REPO_PATH="/${{ env.REPO_NAME_LOWER }}/"
         
-        # 2. Create the .nojekyll file to prevent Jekyll from ignoring Blazor's _framework folder
+        # 1. Create the .nojekyll file
         touch $WEB_ROOT/.nojekyll
         
-        # 3. Copy index.html to 404.html for client-side routing
+        # 2. Copy index.html to 404.html
         cp $WEB_ROOT/index.html $WEB_ROOT/404.html
+        
+        # 3. Inject JavaScript to dynamically set the <base href> tag BEFORE Blazor loads.
+        # This is the most reliable method to force the correct path.
+        JS_SNIPPET="<script>document.querySelector('base').setAttribute('href', '$REPO_PATH');</script>"
+        
+        # Insert the script immediately before the closing </head> tag in index.html and 404.html
+        sed -i "s|\\(<\\/head>\\)|$JS_SNIPPET\\n\\1|g" $WEB_ROOT/index.html
+        sed -i "s|\\(<\\/head>\\)|$JS_SNIPPET\\n\\1|g" $WEB_ROOT/404.html
     # --- END of CRITICAL GitHub Pages Fixes ---
 
     - name: Upload Pages Artifact
