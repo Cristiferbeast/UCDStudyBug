@@ -66,11 +66,8 @@ jobs:
       uses: actions/upload-pages-artifact@v3
       with:
         # Upload the final output folder
-        path: ${{ env.PUBLISH_FOLDER }}/wwwroot
-        
+        path: ${{ env.PUBLISH_FOLDER }}/wwwroot # <-- Line 76 might be here, if the line count is off by a few lines
+
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
-
-
-Commit this file with the fix and push it to your GitHub repository. The workflow should now pass the YAML parsing check and successfully begin the build process!
