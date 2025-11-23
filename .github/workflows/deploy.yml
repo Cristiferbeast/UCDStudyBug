@@ -2,9 +2,8 @@ name: Deploy Blazor to GitHub Pages
 
 on:
   push:
-    # Triggers the workflow on pushes to the main branch
     branches: ["main"] 
-  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
+  workflow_dispatch: 
 
 # Set permissions for the GITHUB_TOKEN to deploy the site
 permissions:
@@ -16,16 +15,13 @@ jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     
-    # Required for GitHub Pages environment configuration
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
-    # Define environment variables to simplify paths
+    # Define environment variables
     env:
-      # Project file path is at the repository root
       PROJECT_FILE: ${{ github.workspace }}/StudyBug.csproj 
-      # Clean, non-conflicting output folder name
       PUBLISH_FOLDER: ${{ github.workspace }}/publish-output
       
     steps:
@@ -40,42 +36,21 @@ jobs:
       run: dotnet restore ${{ env.PROJECT_FILE }}
 
     - name: Clean and Publish Blazor WebAssembly
-      # Ensures a clean publish run and generates all necessary Blazor framework files.
       run: |
         rm -rf ${{ env.PUBLISH_FOLDER }}
         dotnet publish ${{ env.PROJECT_FILE }} -c Release --output ${{ env.PUBLISH_FOLDER }} /p:ServiceWorkerAssetsManifest=service-worker-assets.js
 
-    # --- START of CRITICAL GitHub Pages Fixes ---
-    - name: Get Lowercase Repository Name
-      # CRITICAL: Converts UCDStudyBug -> ucdstudybug for reliable pathing.
-      id: get_repo_name
-      run: echo "REPO_NAME_LOWER=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-
-    - name: Inject Base Path Fix (JavaScript DOM Override)
+    - name: Finalize Static Assets
       run: |
         WEB_ROOT=${{ env.PUBLISH_FOLDER }}/wwwroot
-        REPO_PATH="/${{ env.REPO_NAME_LOWER }}/"
-        
-        # 1. Create the .nojekyll file
         touch $WEB_ROOT/.nojekyll
-        
-        # 2. Copy index.html to 404.html
         cp $WEB_ROOT/index.html $WEB_ROOT/404.html
-        
-        # 3. Inject JavaScript to dynamically set the <base href> tag BEFORE Blazor loads.
-        # This is the most reliable method to force the correct path.
-        JS_SNIPPET="<script>document.querySelector('base').setAttribute('href', '$REPO_PATH');</script>"
-        
-        # Insert the script immediately before the closing </head> tag in index.html and 404.html
-        sed -i "s|\\(<\\/head>\\)|$JS_SNIPPET\\n\\1|g" $WEB_ROOT/index.html
-        sed -i "s|\\(<\\/head>\\)|$JS_SNIPPET\\n\\1|g" $WEB_ROOT/404.html
-    # --- END of CRITICAL GitHub Pages Fixes ---
 
     - name: Upload Pages Artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        # Upload the content of the wwwroot directory, which contains all the static assets.
-        path: ${{ env.PUBLISH_FOLDER }}/wwwroot
+        # CRITICAL FIX: The trailing slash is required here.
+        path: ${{ env.PUBLISH_FOLDER }}/wwwroot/ 
 
     - name: Deploy to GitHub Pages
       id: deployment
