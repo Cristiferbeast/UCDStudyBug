@@ -16,23 +16,22 @@ jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     
-    # --- FIX APPLIED HERE ---
-    # The 'environment' key MUST be defined inside the job, not globally.
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
     # Define environment variables to simplify paths
     env:
-      # Use your project's file path here
+      # Assuming this path is correct: the .csproj file is at the repository root
       PROJECT_FILE: ${{ github.workspace }}/StudyBug.csproj 
-      PUBLISH_FOLDER: ${{ github.workspace }}/wwwroot 
+      
+      # FIX: Use a neutral, non-conflicting folder name for the build output.
+      PUBLISH_FOLDER: ${{ github.workspace }}/publish 
       
     steps:
     - uses: actions/checkout@v4
 
     - name: Set up .NET
-      # Ensure this version matches your Blazor project
       uses: actions/setup-dotnet@v4 
       with:
         dotnet-version: '8.0.x' 
@@ -41,7 +40,9 @@ jobs:
       run: dotnet restore ${{ env.PROJECT_FILE }}
 
     - name: Publish Blazor WebAssembly
-      run: dotnet publish ${{ env.PROJECT_FILE }} -c Release --output ${{ env.PUBLISH_FOLDER }}/wwwroot
+      # FIX: We now output directly to the new 'publish' folder. 
+      # dotnet will create the 'wwwroot' folder inside it automatically.
+      run: dotnet publish ${{ env.PROJECT_FILE }} -c Release --output ${{ env.PUBLISH_FOLDER }}
 
     # --- START of Essential GitHub Pages Fixes ---
     - name: Apply GitHub Pages Fixes (Base Path, NoJekyll, 404.html)
@@ -50,23 +51,26 @@ jobs:
       run: echo "REPO_NAME=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
 
     - name: Fix Published Content
+      # Now, all paths correctly point to ${{ env.PUBLISH_FOLDER }}/wwwroot
       run: |
+        # Define the web root path for cleaner commands
+        WEB_ROOT=${{ env.PUBLISH_FOLDER }}/wwwroot
+
         # 1. Update <base href> to match the repository path
-        # Note: We use ${{ env.REPO_NAME }} here dynamically
-        sed -i 's/<base href="\/" \/>/<base href="\/${{ env.REPO_NAME }}\/" \/>/g' ${{ env.PUBLISH_FOLDER }}/wwwroot/index.html
+        sed -i 's/<base href="\/" \/>/<base href="\/${{ env.REPO_NAME }}\/" \/>/g' $WEB_ROOT/index.html
         
         # 2. Create the .nojekyll file to prevent Jekyll ignoring _framework
-        touch ${{ env.PUBLISH_FOLDER }}/wwwroot/.nojekyll
+        touch $WEB_ROOT/.nojekyll
         
         # 3. Copy index.html to 404.html for client-side routing
-        cp ${{ env.PUBLISH_FOLDER }}/wwwroot/index.html ${{ env.PUBLISH_FOLDER }}/wwwroot/404.html
+        cp $WEB_ROOT/index.html $WEB_ROOT/404.html
     # --- END of GitHub Pages Fixes ---
 
     - name: Upload Pages Artifact
       uses: actions/upload-pages-artifact@v3
       with:
         # Upload the final output folder
-        path: ${{ env.PUBLISH_FOLDER }}/wwwroot # <-- Line 76 might be here, if the line count is off by a few lines
+        path: ${{ env.PUBLISH_FOLDER }}/wwwroot
 
     - name: Deploy to GitHub Pages
       id: deployment
