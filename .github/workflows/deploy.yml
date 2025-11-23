@@ -48,7 +48,7 @@ jobs:
       # Get the repository name from the GitHub context (e.g., UCDStudyBug)
       id: get_repo_name
       run: echo "REPO_NAME=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
-      
+
     - name: Fix Published Content
       run: |
         # 1. Update <base href> to match the repository path
