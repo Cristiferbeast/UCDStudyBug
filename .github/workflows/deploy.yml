@@ -57,8 +57,7 @@ jobs:
         WEB_ROOT=${{ env.PUBLISH_FOLDER }}/wwwroot
 
         # 1. Update <base href> to match the repository path
-        sed -i 's/<base href="\/" \/>/<base href="\/${{ env.REPO_NAME }}\/" \/>/g' $WEB_ROOT/index.html
-        
+        sed -i 's/<base href="\/" \/>/<base href="\/${{ env.REPO_NAME }}\/" \/>/g' $WEB_ROOT/index.html        
         # 2. Create the .nojekyll file to prevent Jekyll ignoring _framework
         touch $WEB_ROOT/.nojekyll
         
