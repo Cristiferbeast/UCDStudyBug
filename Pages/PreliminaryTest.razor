@@ -36,38 +36,94 @@
                 <h2 class="question-text">@currentQuestion.QuestionText</h2>
             </div>
 
-            <!-- Answer Options -->
-            <div class="options-grid">
-                @for (int i = 0; i < currentQuestion.Options.Count; i++)
-                {
-                    var index = i; // Capture for lambda
-                    var isSelected = selectedAnswerIndex == index;
-                    var optionClass = isSelected ? "option-button selected" : "option-button";
+            @if (!showingFeedback)
+            {
+                <!-- Answer Options (Before Submit) -->
+                <div class="options-grid">
+                    @for (int i = 0; i < currentQuestion.Options.Count; i++)
+                    {
+                        var index = i;
+                        var isSelected = selectedAnswerIndex == index;
+                        var optionClass = isSelected ? "option-button selected" : "option-button";
 
-                    <button class="@optionClass" @onclick="() => SelectAnswer(index)">
-                        <span class="option-letter">@GetOptionLetter(index)</span>
-                        <span class="option-text">@currentQuestion.Options[index]</span>
-                        @if (isSelected)
+                        <button class="@optionClass" @onclick="() => SelectAnswer(index)">
+                            <span class="option-letter">@GetOptionLetter(index)</span>
+                            <span class="option-text">@currentQuestion.Options[index]</span>
+                            @if (isSelected)
+                            {
+                                <span class="checkmark">✓</span>
+                            }
+                        </button>
+                    }
+                </div>
+
+                <!-- Submit Button -->
+                <div class="button-container">
+                    <button class="btn-submit" @onclick="SubmitAnswer" disabled="@(selectedAnswerIndex == null)">
+                        Submit Answer
+                    </button>
+                </div>
+            }
+            else
+            {
+                <!-- Feedback Section (After Submit) -->
+                <div class="feedback-section @(wasCorrect ? "correct" : "incorrect")">
+                    <div class="feedback-icon">
+                        @if (wasCorrect)
                         {
-                            <span class="checkmark">✓</span>
+                            <span>✅</span>
+                        }
+                        else if (wasClose)
+                        {
+                            <span>🟡</span>
+                        }
+                        else
+                        {
+                            <span>❌</span>
+                        }
+                    </div>
+                    <div class="feedback-message">
+                        @if (wasCorrect)
+                        {
+                            <h3>Correct!</h3>
+                            <p>Great job! You earned <strong>@lastQuestionPoints points</strong></p>
+                        }
+                        else if (wasClose)
+                        {
+                            <h3>Close!</h3>
+                            <p>You got partial credit: <strong>@lastQuestionPoints points</strong></p>
+                            <p class="correct-answer">The correct answer was: <strong>@GetOptionLetter(currentQuestion.CorrectAnswerIndex). @currentQuestion.Options[currentQuestion.CorrectAnswerIndex]</strong></p>
+                        }
+                        else
+                        {
+                            <h3>Incorrect</h3>
+                            <p>No points earned this time</p>
+                            <p class="correct-answer">The correct answer was: <strong>@GetOptionLetter(currentQuestion.CorrectAnswerIndex). @currentQuestion.Options[currentQuestion.CorrectAnswerIndex]</strong></p>
+                        }
+                    </div>
+                </div>
+
+                <!-- Show Selected vs Correct -->
+                <div class="answer-comparison">
+                    <div class="your-answer">
+                        <strong>Your answer:</strong> @GetOptionLetter(selectedAnswerIndex!.Value). @currentQuestion.Options[selectedAnswerIndex!.Value]
+                    </div>
+                </div>
+
+                <!-- Continue Button -->
+                <div class="button-container">
+                    <button class="btn-continue" @onclick="ContinueToNext">
+                        @if (currentQuestionIndex < totalQuestions - 1)
+                        {
+                            <text>Next Question →</text>
+                        }
+                        else
+                        {
+                            <text>Finish Test ✓</text>
                         }
                     </button>
-                }
-            </div>
-
-            <!-- Submit Button -->
-            <div class="button-container">
-                <button class="btn-submit" @onclick="SubmitAnswer" disabled="@(selectedAnswerIndex == null)">
-                    @if (currentQuestionIndex < totalQuestions - 1)
-                    {
-                        <text>Next Question →</text>
-                    }
-                    else
-                    {
-                        <text>Finish Test ✓</text>
-                    }
-                </button>
-            </div>
+                </div>
+            }
         }
         else
         {
@@ -81,8 +137,8 @@
 </div>
 
 @code {
-    private List<StudyBuddy.Models.PreliminaryQuestion> allQuestions = new();
-    private StudyBuddy.Models.PreliminaryQuestion? currentQuestion;
+    private List<PreliminaryQuestion> allQuestions = new();
+    private PreliminaryQuestion? currentQuestion;
     private int currentQuestionIndex = 0;
     private int totalQuestions = 0;
     private int? selectedAnswerIndex = null;
@@ -91,18 +147,19 @@
     private TimeSpan currentQuestionTime = TimeSpan.Zero;
     private DateTime questionStartTime;
 
+    private bool showingFeedback = false;
+    private bool wasCorrect = false;
+    private bool wasClose = false;
+    private int lastQuestionPoints = 0;
+    private TimeSpan lastQuestionTime = TimeSpan.Zero;
+
     private PreliminaryTestResult testResult = new();
 
     protected override void OnInitialized()
     {
-        // Get all questions
         allQuestions = TestService.GetShuffledQuestions();
         totalQuestions = allQuestions.Count;
-
-        // Load first question
         LoadQuestion(0);
-
-        // Start timer
         StartTimer();
     }
 
@@ -110,7 +167,6 @@
     {
         if (index >= allQuestions.Count)
         {
-            // Test complete
             CompleteTest();
             return;
         }
@@ -118,13 +174,14 @@
         currentQuestion = allQuestions[index];
         currentQuestionIndex = index;
         selectedAnswerIndex = null;
+        showingFeedback = false;
         currentQuestionTime = TimeSpan.Zero;
         questionStartTime = DateTime.Now;
     }
 
     private void StartTimer()
     {
-        timer = new System.Timers.Timer(100); // Update every 100ms
+        timer = new System.Timers.Timer(100);
         timer.Elapsed += (sender, e) =>
         {
             currentQuestionTime = DateTime.Now - questionStartTime;
@@ -135,34 +192,43 @@
 
     private void SelectAnswer(int index)
     {
-        selectedAnswerIndex = index;
+        if (!showingFeedback)
+        {
+            selectedAnswerIndex = index;
+        }
     }
 
     private void SubmitAnswer()
     {
         if (currentQuestion == null || selectedAnswerIndex == null) return;
 
-        // Stop the timer for this question
-        var timeTaken = DateTime.Now - questionStartTime;
+        // Stop timer and calculate time
+        lastQuestionTime = DateTime.Now - questionStartTime;
 
-        // Determine if answer is correct or close
-        bool isCorrect = selectedAnswerIndex == currentQuestion.CorrectAnswerIndex;
-        bool isClose = currentQuestion.CloseAnswerIndexes.Contains(selectedAnswerIndex.Value);
+        // Determine correctness
+        wasCorrect = selectedAnswerIndex == currentQuestion.CorrectAnswerIndex;
+        wasClose = currentQuestion.CloseAnswerIndexes.Contains(selectedAnswerIndex.Value);
 
         // Calculate points
-        int points = TestService.CalculatePoints(timeTaken, isCorrect, isClose);
-        var result = TestService.DetermineAnswerResult(timeTaken, isCorrect, isClose);
+        lastQuestionPoints = TestService.CalculatePoints(lastQuestionTime, wasCorrect, wasClose);
+        var result = TestService.DetermineAnswerResult(lastQuestionTime, wasCorrect, wasClose);
 
         // Store result
-        testResult.CategoryScores[currentQuestion.CategoryName] = new CategoryScore
+        testResult.IndividualQuestionResults.Add(new QuestionResult
         {
+            QuestionId = currentQuestion.Id,
             CategoryName = currentQuestion.CategoryName,
-            Points = points,
-            TimeSpent = timeTaken,
+            Points = lastQuestionPoints,
+            TimeSpent = lastQuestionTime,
             Result = result
-        };
+        });
 
-        // Move to next question
+        // Show feedback
+        showingFeedback = true;
+    }
+
+    private void ContinueToNext()
+    {
         LoadQuestion(currentQuestionIndex + 1);
     }
 
@@ -171,13 +237,14 @@
         timer?.Stop();
         testResult.CompletedAt = DateTime.Now;
 
-        // Calculate total time
-        testResult.TotalTime = testResult.CategoryScores.Values
-            .Select(cs => cs.TimeSpent)
+        testResult.TotalTime = testResult.IndividualQuestionResults
+            .Select(qr => qr.TimeSpent)
             .Aggregate(TimeSpan.Zero, (sum, time) => sum + time);
 
-        // Navigate to results page (we'll build this next)
+        testResult.CategoryScores = TestService.CalculateCategoryScores(testResult.IndividualQuestionResults);
+
         ResultsService.CurrentResult = testResult;
+
         Navigation.NavigateTo("/test-results");
     }
 

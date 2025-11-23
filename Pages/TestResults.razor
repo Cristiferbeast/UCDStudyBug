@@ -206,6 +206,40 @@
     }
 </style>
 
+@code {
+    private PreliminaryTestResult? result;
+    private List<CategoryScore> sortedCategories = new();
+    private int totalPoints = 0;
+    private int averagePoints = 0;
+    private int averagePercentage = 0;  // ADD THIS
+
+
+    protected override void OnInitialized()
+    {
+        result = ResultsService.CurrentResult;
+
+        if (result != null)
+        {
+            sortedCategories = result.CategoryScores.Values
+                .OrderByDescending(c => c.Points)
+                .ToList();
+
+            totalPoints = sortedCategories.Sum(c => c.Points);
+            averagePoints = sortedCategories.Any() ? totalPoints / sortedCategories.Count : 0;
+        }
+    }
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private void StartStudying()
+    {
+        Console.WriteLine("Starting study mode...");
+    }
+}
+
 <div class="results-container">
     <div class="results-card">
         @if (result != null)
@@ -239,8 +273,10 @@
 
                 @foreach (var category in sortedCategories)
                 {
-                    var percentage = (category.Points / 125.0) * 100;
-                    var emoji = category.Points >= 100 ? "🌟" : category.Points >= 70 ? "😊" : category.Points >= 45 ? "🤔" : "📖";
+                    var maxPossiblePoints = category.TotalQuestions * 125;
+                    var percentage = maxPossiblePoints > 0 ? (category.Points / (double)maxPossiblePoints) * 100 : 0;
+                    var averagePercentage = (category.AveragePoints / 125.0) * 100;
+                    var emoji = percentage >= 100 ? "🌟" : percentage >= 70 ? "😊" : percentage >= 45 ? "🤔" : "📖";
 
                     <div class="category-item">
                         <div class="category-top">
@@ -279,35 +315,3 @@
         }
     </div>
 </div>
-
-@code {
-    private PreliminaryTestResult? result;
-    private List<CategoryScore> sortedCategories = new();
-    private int totalPoints = 0;
-    private int averagePoints = 0;
-
-    protected override void OnInitialized()
-    {
-        result = ResultsService.CurrentResult;
-
-        if (result != null)
-        {
-            sortedCategories = result.CategoryScores.Values
-                .OrderByDescending(c => c.Points)
-                .ToList();
-
-            totalPoints = sortedCategories.Sum(c => c.Points);
-            averagePoints = sortedCategories.Any() ? totalPoints / sortedCategories.Count : 0;
-        }
-    }
-
-    private void GoHome()
-    {
-        Navigation.NavigateTo("/");
-    }
-
-    private void StartStudying()
-    {
-        Console.WriteLine("Starting study mode...");
-    }
-}
