@@ -16,17 +16,17 @@ jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     
+    # Required for GitHub Pages environment configuration
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
     # Define environment variables to simplify paths
     env:
-      # Assuming this path is correct: the .csproj file is at the repository root
+      # Project file path is at the repository root
       PROJECT_FILE: ${{ github.workspace }}/StudyBug.csproj 
-      
-      # FIX: Use a neutral, non-conflicting folder name for the build output.
-      PUBLISH_FOLDER: ${{ github.workspace }}/publish 
+      # Clean, non-conflicting output folder name
+      PUBLISH_FOLDER: ${{ github.workspace }}/publish-output
       
     steps:
     - uses: actions/checkout@v4
@@ -39,37 +39,38 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore ${{ env.PROJECT_FILE }}
 
-    - name: Publish Blazor WebAssembly
-      # FIX: We now output directly to the new 'publish' folder. 
-      # dotnet will create the 'wwwroot' folder inside it automatically.
-      run: dotnet publish ${{ env.PROJECT_FILE }} -c Release --output ${{ env.PUBLISH_FOLDER }}
+    - name: Clean and Publish Blazor WebAssembly
+      # CRITICAL: Ensures a clean publish run and generates all necessary Blazor framework files.
+      run: |
+        rm -rf ${{ env.PUBLISH_FOLDER }}
+        dotnet publish ${{ env.PROJECT_FILE }} -c Release --output ${{ env.PUBLISH_FOLDER }} /p:ServiceWorkerAssetsManifest=service-worker-assets.js
 
-    # --- START of Essential GitHub Pages Fixes ---
-    - name: Apply GitHub Pages Fixes (Base Path, NoJekyll, 404.html)
-      # Get the repository name from the GitHub context (e.g., UCDStudyBug)
+    # --- START of CRITICAL GitHub Pages Fixes ---
+    - name: Get Lowercase Repository Name
+      # CRITICAL FIX: Converts 'UCDStudyBug' to 'ucdstudybug' to match the case required by GitHub Pages URLs.
       id: get_repo_name
-      run: echo "REPO_NAME=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
+      run: echo "REPO_NAME_LOWER=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
     - name: Fix Published Content
-      # Now, all paths correctly point to ${{ env.PUBLISH_FOLDER }}/wwwroot
       run: |
-        # Define the web root path for cleaner commands
+        # Define the path to the deployed website root
         WEB_ROOT=${{ env.PUBLISH_FOLDER }}/wwwroot
 
-        # 1. Update <base href> to match the repository path
-        sed -i 's/<base href="\/" \/>/<base href="\/${{ env.REPO_NAME }}\/" \/>/g' $WEB_ROOT/index.html
+        # 1. Fix <base href>: Use the lowercase name and include the trailing slash (/)
+        # This is the final step that solves the base path problem.
+        sed -i 's/<base href="\/" \/>/<base href="\/${{ env.REPO_NAME_LOWER }}\/" \/>/g' $WEB_ROOT/index.html
         
-        # 2. Create the .nojekyll file to prevent Jekyll ignoring _framework
+        # 2. Create the .nojekyll file to prevent Jekyll from ignoring Blazor's _framework folder
         touch $WEB_ROOT/.nojekyll
         
         # 3. Copy index.html to 404.html for client-side routing
         cp $WEB_ROOT/index.html $WEB_ROOT/404.html
-    # --- END of GitHub Pages Fixes ---
+    # --- END of CRITICAL GitHub Pages Fixes ---
 
     - name: Upload Pages Artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        # Upload the final output folder
+        # Upload the content of the wwwroot directory, which contains all the static assets.
         path: ${{ env.PUBLISH_FOLDER }}/wwwroot
 
     - name: Deploy to GitHub Pages
