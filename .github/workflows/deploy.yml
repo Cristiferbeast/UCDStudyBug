@@ -25,7 +25,7 @@ jobs:
     # Define environment variables to simplify paths
     env:
       # Use your project's file path here
-      PROJECT_FILE: UCDStudyBug/StudyBug.csproj 
+      PROJECT_FILE: ${{ github.workspace }}/StudyBug.csproj 
       PUBLISH_FOLDER: ${{ github.workspace }}/publish 
       
     steps:
